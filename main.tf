@@ -76,6 +76,16 @@ resource "aws_iam_policy" "tf_ple_lambda_policy" {
         ]
         Effect   = "Allow"
         Resource = "arn:aws:secretsmanager:*:${data.aws_caller_identity.current.account_id}:secret:finnhub_api_key*"
+      },
+      {
+        Action = [
+          "s3:PutObject*"
+        ]
+        Effect = "Allow"
+        Resource = [
+          "${aws_s3_bucket.tf_ple_member_balance_bucket.arn}",
+          "${aws_s3_bucket.tf_ple_member_balance_bucket.arn}/*"
+        ]        
       }
     ]
   })
@@ -169,3 +179,16 @@ resource "aws_cloudwatch_log_group" "tf_ple_cloudwatch_lambda_log_group" {
   name              = "/aws/lambda/${var.lambda_function_name}"
   retention_in_days = 14
 }
+
+//
+// S3 OUPUT
+//
+
+resource "aws_s3_bucket" "tf_ple_member_balance_bucket" {
+  bucket = "tf-ple-member-balance-bucket"
+  acl    = "private"
+  versioning {
+    enabled = true
+  }
+}
+
