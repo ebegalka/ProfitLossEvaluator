@@ -12,6 +12,7 @@ Assumptions:
 * SQS input data is in this format: `[[user_id,buy/sell,stock symbol,quantity,price,timestamp(UTC)],[12345,buy,AAPL,10,76.60,2020-01-02 16:01:23],[12345,buy,AAPL,5,95.11,2020-06-05 15:21:65],[12345,buy,GME,5,20.99,2020-12-21 15:45:24],[12345,sell,GME,5,145.04,2021-01-26 18:34:12]]`
 * Input Data is retrieved for 1 user at a time, user_id will not be unique
 * There is no error checking for if they have sufficient funds to purchase stock, or if sufficient stock to sell
+* No manipulating the data set. For example, no adding a transaction ID, no reformatting the table into JSON for example- keep it relational.
 
 Enhancements on deck:
 * Output sending mechanism, sending to an output queue or bucket maybe
