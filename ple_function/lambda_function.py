@@ -5,18 +5,12 @@ import finnhub
 import boto3
 
 def lambda_handler(event, context):
-    #testdata = [
-        #["user_id", "buy/sell", "stock symbol", "quantity", "price", "timestamp (UTC)"],
-        #[12345, "buy", "AAPL", 10, 76.60, "2020-01-02 16:01:23"],
-        #[12345, "buy", "AAPL", 5, 95.11, "2020-06-05 15:21:65"],
-        #[12345, "buy", "GME", 5, 20.99, "2020-12-21 15:45:24"],
-        #[12345, "sell", "GME", 5, 145.04, "2021-01-26 18:34:12"]
-    #]
+    #Below is the format SQS must receive the data in:
     #testdata = "[[user_id,buy/sell,stock symbol,quantity,price,timestamp(UTC)],[12345,buy,AAPL,10,76.60,2020-01-02 16:01:23],[12345,buy,AAPL,5,95.11,2020-06-05 15:21:65],[12345,buy,GME,5,20.99,2020-12-21 15:45:24],[12345,sell,GME,5,145.04,2021-01-26 18:34:12]]"
 
     testdata = event["Records"][0]["body"]
 
-
+    # Convert the list of lists string to a proper list of lists
     testdata = testdata[1:-2]
     data_list = []
     for item in list(testdata.split("],")):
@@ -25,36 +19,40 @@ def lambda_handler(event, context):
         item = list(item)
         data_list.append(item)
 
+    # Convert appropriate strings to proper type
     for item in data_list[1:]:
         item[0] = int(item[0])
         item[3] = int(item[3])
         item[4] = float(item[4])
   
+    # Get Finnhub API key Secret Value
     client = boto3.client('secretsmanager')
     finnhub_api_key = client.get_secret_value(SecretId='finnhub_api_key')["SecretString"]
     finnhub_client = finnhub.Client(api_key=finnhub_api_key)
 
     balance = 0
     data_list[0].append("current price")
+    current = int(time.time())
+
     for transaction in data_list[1:]:        
-        current = int(time.time())
-        print("Full Candle Info:\n"+str(finnhub_client.stock_candles(transaction[2], 'D', current, current)))
-        transaction.append(finnhub_client.stock_candles(transaction[2], 'D', current, current)["c"][0])
-        #quantity * (current price-old price)
+        quoteinfo = finnhub_client.quote(transaction[2])
+        #print("INFO: Full Candle Info: "+str(quoteinfo))
+        transaction.append(quoteinfo["c"])
+        #   change = quantity * (current price-old price)
         change = round(transaction[3] * (transaction[6] - transaction[4]),2)
 
         if transaction[1] == "buy":
             balance += change
         elif transaction[1] == "sell":
             balance -= change
-        
+
+    print("INFO: Processed Data Structure below:")    
     for item in data_list:
         print(str(item))
     
     return {
         'statusCode': 200,
         'balance': round(balance,2),
-        'body': json.dumps('Hello from Lambda!')
     }
 
 event = {
