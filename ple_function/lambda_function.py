@@ -37,6 +37,8 @@ def lambda_handler(event, context):
     for transaction in data_list[1:]:   
       #Add data to new "current price" column     
       quoteinfo = finnhub_client.quote(transaction[2])
+      print("INFO: Retrieved "+transaction[2]+" quote from finnhub: " + str(quoteinfo))
+
       transaction.append(quoteinfo["c"])
 
       #Edit Balance   change = quantity * (current price-old price)
@@ -46,9 +48,9 @@ def lambda_handler(event, context):
       elif transaction[1] == "sell":
         balance -= change
 
-    print("INFO: Processed Data Structure below:")    
-    for item in data_list:
-      print(str(item))
+
+    data_list_string = '\n'.join([str("  "+str(elem)) for elem in data_list])
+    print("INFO: Processed Data Structure:\n"+data_list_string)    
     
     return {
       'statusCode': 200,
@@ -76,4 +78,4 @@ event = {
   ]
 }
 
-#print(lambda_handler(event,2))
+print(lambda_handler(event,2))
