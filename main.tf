@@ -71,11 +71,11 @@ resource "aws_iam_policy" "tf_ple_lambda_policy" {
         Resource = "${aws_kms_key.tf_ple_kms_key.arn}"
       },
       {
-          Action = [
-              "secretsmanager:GetSecretValue"
-          ]
-          Effect = "Allow"
-          Resource = "arn:aws:secretsmanager:*:${data.aws_caller_identity.current.account_id}:secret:finnhub_api_key*"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Effect   = "Allow"
+        Resource = "arn:aws:secretsmanager:*:${data.aws_caller_identity.current.account_id}:secret:finnhub_api_key*"
       }
     ]
   })
