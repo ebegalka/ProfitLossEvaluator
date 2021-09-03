@@ -14,16 +14,16 @@ def lambda_handler(event, context):
     testdata = testdata[1:-2]
     data_list = []
     for item in list(testdata.split("],")):
-        item = item[1:]
-        item = item.split(",")
-        item = list(item)
-        data_list.append(item)
+      item = item[1:]
+      item = item.split(",")
+      item = list(item)
+      data_list.append(item)
 
     # Convert appropriate strings to proper type
     for item in data_list[1:]:
-        item[0] = int(item[0])
-        item[3] = int(item[3])
-        item[4] = float(item[4])
+      item[0] = int(item[0])
+      item[3] = int(item[3])
+      item[4] = float(item[4])
   
     # Get Finnhub API key Secret Value
     client = boto3.client('secretsmanager')
@@ -34,25 +34,25 @@ def lambda_handler(event, context):
     data_list[0].append("current price")
     current = int(time.time())
 
-    for transaction in data_list[1:]:        
-        quoteinfo = finnhub_client.quote(transaction[2])
-        #print("INFO: Full Candle Info: "+str(quoteinfo))
-        transaction.append(quoteinfo["c"])
-        #   change = quantity * (current price-old price)
-        change = round(transaction[3] * (transaction[6] - transaction[4]),2)
+    for transaction in data_list[1:]:   
+      #Add data to new "current price" column     
+      quoteinfo = finnhub_client.quote(transaction[2])
+      transaction.append(quoteinfo["c"])
 
-        if transaction[1] == "buy":
-            balance += change
-        elif transaction[1] == "sell":
-            balance -= change
+      #Edit Balance   change = quantity * (current price-old price)
+      change = round(transaction[3] * (transaction[6] - transaction[4]),2)
+      if transaction[1] == "buy":
+        balance += change
+      elif transaction[1] == "sell":
+        balance -= change
 
     print("INFO: Processed Data Structure below:")    
     for item in data_list:
-        print(str(item))
+      print(str(item))
     
     return {
-        'statusCode': 200,
-        'balance': round(balance,2),
+      'statusCode': 200,
+      'balance': round(balance,2),
     }
 
 event = {
@@ -76,4 +76,4 @@ event = {
   ]
 }
 
-print(lambda_handler(event,2))
+#print(lambda_handler(event,2))
