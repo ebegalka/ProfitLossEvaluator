@@ -145,13 +145,25 @@ resource "aws_lambda_event_source_mapping" "tf_ple_event_source_mapping" {
 //LAMBDA FUNCTION
 //
 
+resource "aws_lambda_layer_version" "tf_ple_lambda_layer_pandas" {
+  filename   = "layers/pandas_layer.zip"
+  layer_name = "pandas"
+  compatible_runtimes = ["python3.8"]
+}
+
+resource "aws_lambda_layer_version" "tf_ple_lambda_layer_finnhub" {
+  filename   = "layers/finnhub_layer.zip"
+  layer_name = "finnhub"
+  compatible_runtimes = ["python3.8"]
+}
+
 variable "lambda_function_name" {
   default = "tf_ple_function"
 }
 
 data "archive_file" "lambda_my_function" {
   type             = "zip"
-  source_dir       = "ple_function"
+  source_file       = "lambda_function.py"
   output_file_mode = "0666"
   output_path      = "ple_function.zip"
 }
@@ -159,13 +171,17 @@ data "archive_file" "lambda_my_function" {
 resource "aws_lambda_function" "tf_ple_function" {
   function_name    = var.lambda_function_name
   filename         = "ple_function.zip"
-  source_code_hash = filebase64sha256("ple_function.zip")
+  source_code_hash = data.archive_file.lambda_my_function.output_base64sha256 
   role             = aws_iam_role.tf_ple_lambda_role.arn
   handler          = "lambda_function.lambda_handler"
   timeout          = 60
+  layers = [
+    aws_lambda_layer_version.tf_ple_lambda_layer_finnhub.arn,
+    aws_lambda_layer_version.tf_ple_lambda_layer_pandas.arn
+  ]
 
   runtime = "python3.8"
-
+  
   depends_on = [
     aws_cloudwatch_log_group.tf_ple_cloudwatch_lambda_log_group,
   ]
