@@ -5,12 +5,12 @@ Core Mission Statement:
 
 Architecture Overview:
 * SQS receives message
-* Lambda function processes message, calculates profit/loss (balance)
+* Lambda function via Python processes message, calculates profit/loss (balance)
 * S3 stores the balance under a file in a .txt file
 
-How to implement:
+Implementation Guide:
 * Install and Configure Terraform (https://learn.hashicorp.com/collections/terraform/aws-get-started)
-* Using an admin role, or a role with necessary permissions, and substitute EthanAdminUser in the code with your role/user. (This is required for managing the KMS key via terraform)
+* Using an admin role, or a role with necessary permissions, substitute EthanAdminUser in the code with your role/user. (This is required for managing the KMS key via terraform). WARNING: If this is not done before implementation, the kms key may need to be re-configured by the root user.
 * `terraform init`
 * `terraform plan`
 * `terraform apply`
@@ -23,10 +23,11 @@ Assumptions:
 * There is no error checking for if they have sufficient funds to purchase stock, or if sufficient stock to sell
 * No manipulating the data set. For example, no adding a transaction ID, no reformatting the table into JSON for example- keep it relational.
 
-Enhancements on deck:
+Potential Enhancements:
 * (DONE) Output sending mechanism, sending to an output queue or bucket maybe
 * (DONE) Pandas instead of list of lists
-* (DONE) New mechanism for sending the SQS message, CSV in an S3 perhaps
+* New mechanism for sending the SQS message, SQS message instructing lambda to look at a CSV in an S3 perhaps 
+* Terraform state file management
 
 Features potentially outside constraints:
 * Transaction IDs so the input data could be json format would be most ideal
