@@ -20,60 +20,84 @@ def input_data_cleaner(input_data):
     item[0] = int(item[0])
     item[3] = int(item[3])
     item[4] = float(item[4])
+    
   return data_list
 
-def lambda_handler(event, context):
-    #Below is the format SQS must receive the data in:
-    #testdata = "[[user_id,buy/sell,stock symbol,quantity,price,timestamp(UTC)],[12345,buy,AAPL,10,76.60,2020-01-02 16:01:23],[12345,buy,AAPL,5,95.11,2020-06-05 15:21:65],[12345,buy,GME,5,20.99,2020-12-21 15:45:24],[12345,sell,GME,5,145.04,2021-01-26 18:34:12]]"
+def GetFinnhubClient(secret_id):
+  # Get Finnhub API key Secret Value
+  client = boto3.client('secretsmanager')
+  finnhub_api_key = client.get_secret_value(SecretId='finnhub_api_key')["SecretString"]
+  finnhub_client = finnhub.Client(api_key=finnhub_api_key)
+  return finnhub_client
 
-    input_data = event["Records"][0]["body"]
+def UpdateDataList(data_list,finnhub_client):
+  data_list[0].append("current price")
+  current = int(time.time())
+  for transaction in data_list[1:]:   
+    #Add data to new "current price" column   
+    quoteinfo = finnhub_client.quote(transaction[2])
+    if quoteinfo['c'] == 0:
+      print("ERROR: finnhub quote call for {} returned null values, data not found".format(transaction[2]))
 
-    data_list = input_data_cleaner(input_data)
+    print("INFO: Retrieved "+transaction[2]+" quote from finnhub: " + str(quoteinfo))
+
+    transaction.append(quoteinfo["c"])
+
+  return data_list
+
+def GetBalance(data_list):
+  balance = 0
+  for transaction in data_list[1:]:   
+    #Edit Balance   change = quantity * (current price-old price)
+    change = round(transaction[3] * (transaction[6] - transaction[4]),2)
+    if transaction[1] == "buy":
+      balance += change
+    elif transaction[1] == "sell":
+      balance -= change
   
-    # Get Finnhub API key Secret Value
-    client = boto3.client('secretsmanager')
-    finnhub_api_key = client.get_secret_value(SecretId='finnhub_api_key')["SecretString"]
-    finnhub_client = finnhub.Client(api_key=finnhub_api_key)
+  data_list_string = '\n'.join([str("  "+str(elem)) for elem in data_list])
+  print("INFO: Processed Data Structure:\n"+data_list_string)    
 
-    balance = 0
-    data_list[0].append("current price")
-    current = int(time.time())
+  return balance
 
-    for transaction in data_list[1:]:   
-      #Add data to new "current price" column     
-      quoteinfo = finnhub_client.quote(transaction[2])
-      while quoteinfo['c'] == 0:
-        quoteinfo = finnhub_client.quote(transaction[2])
-
-      print("INFO: Retrieved "+transaction[2]+" quote from finnhub: " + str(quoteinfo))
-
-      transaction.append(quoteinfo["c"])
-
-      #Edit Balance   change = quantity * (current price-old price)
-      change = round(transaction[3] * (transaction[6] - transaction[4]),2)
-      if transaction[1] == "buy":
-        balance += change
-      elif transaction[1] == "sell":
-        balance -= change
-
-
-    data_list_string = '\n'.join([str("  "+str(elem)) for elem in data_list])
-    print("INFO: Processed Data Structure:\n"+data_list_string)    
-    
+def UploadToS3(account_id,balance,bucket_name):
     #Write balance to (acount_id)_balance.txt and upload to s3
-    account_id = str(data_list[1][0])
     file_name = account_id+"_balance.txt"
     file = open("/tmp/"+file_name, 'w')
     file.write(str(balance))
     file.close()
     
     s3_client = boto3.client('s3')
-    s3_client.upload_file("/tmp/"+file_name, "tf-ple-member-balance-bucket", file_name)
-    print(file_name+" has been uploaded to tf-ple-member-balance-bucket")
+    s3_client.upload_file("/tmp/"+file_name, bucket_name, file_name)
+    print("{} has been uploaded to {}".format(file_name,bucket_name))
     os.remove("/tmp/"+file_name)
 
-    
 
+
+def lambda_handler(event, context):
+    #Below is the format SQS must receive the data in:
+    #input_data = "[[user_id,buy/sell,stock symbol,quantity,price,timestamp(UTC)],[12345,buy,AAPL,10,76.60,2020-01-02 16:01:23],[12345,buy,AAPL,5,95.11,2020-06-05 15:21:65],[12345,buy,GME,5,20.99,2020-12-21 15:45:24],[12345,sell,GME,5,145.04,2021-01-26 18:34:12]]"
+
+    input_data = event["Records"][0]["body"]
+    
+    #Cleans and properly formats input_data
+    data_list = input_data_cleaner(input_data)
+    
+    #Pull Finnhub API key and intialize finnhub_client
+    secret_id ="finnhub_api_key"
+    finnhub_client = GetFinnhubClient(secret_id)
+
+    #Adds current price to data_list
+    data_list = UpdateDataList(data_list,finnhub_client)
+    
+    #Evaluate current prices and evaluates balance (profit/loss)
+    balance = GetBalance(data_list)
+    
+    #Adds (account_id)_balance.txt to s3 bucket
+    account_id = str(data_list[1][0])
+    bucket_name = "tf-ple-member-balance-bucket"
+    UploadToS3(account_id,balance,bucket_name)
+ 
     return {
       'statusCode': 200,
       'balance': round(balance,2),
@@ -102,4 +126,4 @@ event = {
   ]
 }
 
-#print(lambda_handler(event,2))
+print(lambda_handler(event,2))
