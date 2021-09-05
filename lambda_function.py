@@ -37,6 +37,8 @@ def UpdateDataList(df,finnhub_client,start_time,end_time):
   #Convert string times to POSIX timestamp
   start_price_list = []
   end_price_list = []
+  avg_buy_price_list = []
+  
   for ind in df.index:
     start_candleinfo = finnhub_client.stock_candles(df["stock symbol"][ind],"D",start_time,start_time)
     end_candleinfo = finnhub_client.stock_candles(df["stock symbol"][ind],"D",end_time,end_time)
@@ -50,7 +52,19 @@ def UpdateDataList(df,finnhub_client,start_time,end_time):
 
     start_price_list.append(start_candleinfo["c"][0])
     end_price_list.append(end_candleinfo["c"][0])
-  
+
+    #find the avg buy price
+    stock_total_cost = 0
+    stock_total_units_bought = 0
+    for ind2 in df.index:
+      if df["buy/sell"][ind2] == "buy" and df["stock symbol"][ind2] == df["stock symbol"][ind]:
+        stock_total_cost += df["price"][ind2] * df["quantity"][ind2]
+        stock_total_units_bought += df["quantity"][ind2]
+
+    avg_buy_price_list.append(stock_total_cost/stock_total_units_bought)
+
+  print(avg_buy_price_list)
+  df['avg buy price']=avg_buy_price_list
   df['start price']=start_price_list
   df['end price']=end_price_list
   return df
@@ -58,6 +72,7 @@ def UpdateDataList(df,finnhub_client,start_time,end_time):
 def GetBalance(df,start_time,end_time):
   balance = 0
   for ind in df.index:
+    change = 0
     transaction_identifier = "{} {} {} at ${}".format(df["buy/sell"][ind],str(df["quantity"][ind]),df["stock symbol"][ind],str(df["price"][ind]))
     if start_time <= df["timestamp(UTC)"][ind] <=  end_time:
       if df["buy/sell"][ind] == "buy":
@@ -66,20 +81,13 @@ def GetBalance(df,start_time,end_time):
         print("INFO: The transaction '{} has been processed and will result in a change of: {}".format(transaction_identifier, str(change)))
 
       elif df["buy/sell"][ind] == "sell":
-        #find the avg buy price
-        stock_total_cost = 0
-        stock_total_units_bought = 0
-        change = 0
-        for ind2 in df.index:
-          if df["buy/sell"][ind2] == "buy" and df["stock symbol"][ind2] == df["stock symbol"][ind]:
-            stock_total_cost += df["price"][ind2] * df["quantity"][ind2]
-            stock_total_units_bought += df["quantity"][ind2]
-            #subtract the profit/loss that the user wouldve had if they held
-            change -= df["quantity"][ind2] * (df["end price"][ind2] - df["price"][ind2])
-        stock_avg_buy_price = stock_total_cost/stock_total_units_bought
+        #subtract previous buy gains they would've had if they held
+        holding_change = df["quantity"][ind] * (df["end price"][ind] - df["avg buy price"][ind])
+        change -= holding_change
         #change += sell price - avg buy price
-        change += df["quantity"][ind] * (df["price"][ind] - stock_avg_buy_price)
-        print("INFO: The transaction '{}, originally bought for ${}' has been processed and will result in a change correction of: {}".format(transaction_identifier, stock_avg_buy_price, str(change)))
+        sell_change = df["quantity"][ind] * (df["price"][ind] - df["avg buy price"][ind])
+        change += sell_change
+        print("INFO: The transaction '{}, originally bought for ${}' has been processed and will result in a change correction of: {}".format(transaction_identifier, df["avg buy price"][ind], str(change)))
 
       balance += change
       
