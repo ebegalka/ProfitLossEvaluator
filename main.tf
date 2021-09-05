@@ -129,7 +129,7 @@ resource "aws_kms_alias" "tf_ple_kms_key_alias" {
 //SQS
 
 resource "aws_sqs_queue" "tf_ple_sqs_queue" {
-  name                      = "terraform-example-queue"
+  name                      = "tf_ple_sqs_queue"
   max_message_size          = 2048
   message_retention_seconds = 86400
 }
@@ -174,7 +174,7 @@ resource "aws_lambda_function" "tf_ple_function" {
   source_code_hash = data.archive_file.lambda_my_function.output_base64sha256
   role             = aws_iam_role.tf_ple_lambda_role.arn
   handler          = "lambda_function.lambda_handler"
-  timeout          = 60
+  timeout          = 30
   layers = [
     aws_lambda_layer_version.tf_ple_lambda_layer_finnhub.arn,
     aws_lambda_layer_version.tf_ple_lambda_layer_pandas.arn
@@ -201,7 +201,7 @@ resource "aws_cloudwatch_log_group" "tf_ple_cloudwatch_lambda_log_group" {
 //
 
 resource "aws_s3_bucket" "tf_ple_member_balance_bucket" {
-  bucket = "tf-ple-member-balance-bucket"
+  bucket = "tf-ple-user-balance-bucket"
   acl    = "private"
   versioning {
     enabled = true
