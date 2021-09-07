@@ -30,9 +30,9 @@ Assumptions:
 Potential Enhancements:
 * (DONE) Output sending mechanism, sending to an output queue or bucket maybe
 * (DONE) Pandas instead of list of lists
-* New mechanism for receiving the SQS message, SQS message instructing lambda to look at a CSV in an S3 perhaps 
+* New mechanism for receiving the SQS message instead of the string version of lists of lists, SQS message instructing lambda to look at a CSV in an S3 would be more appropriate
 * Terraform state file management
-* SNS message should be sent to other infrastructure instead of the S3 text file. Alternatively, output should be stored in a database. Ideally SNS, but the current S3 solution is not ideal for any full fledged application outside of this POC.
+* SNS message should be sent to other infrastructure instead of the S3 text file. Alternatively, output could be stored in a database. Ideally SNS rather than a database, but regardless the current S3 solution is not ideal for any full fledged application outside of this POC.
 
 Features potentially outside constraints:
 * Transaction IDs so the input data could be json format would be most ideal
